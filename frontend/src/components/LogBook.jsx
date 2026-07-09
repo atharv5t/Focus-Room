@@ -68,12 +68,18 @@ export const LogBook = ({ refreshKey, onChange }) => {
   const load = async () => {
     try {
       const list = await fetchLogEntries(date);
-      setEntries(list);
+  
+      console.log("LOG API:", list);
+      console.log("Is array?", Array.isArray(list));
+  
+      setEntries(Array.isArray(list) ? list : []);
     } catch (e) {
+      console.error(e);
       toast.error("Could not load log");
     } finally {
       setLoaded(true);
     }
+  
   };
 
   useEffect(() => { load(); }, [date, refreshKey]); // eslint-disable-line
