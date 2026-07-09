@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 const FIELDS = [
   { key: "daily_goal", label: "Daily", accent: "#556B2F", placeholder: "e.g. 1 chapter of calculus, 30 min run…" },

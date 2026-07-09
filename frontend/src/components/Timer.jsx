@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Play, Pause, RotateCcw } from "lucide-react";
 
@@ -62,7 +62,7 @@ export const Timer = ({ onSessionComplete }) => {
     } catch (e) { /* ignore */ }
   };
 
-  const completeSession = () => {
+  const completeSession = useCallback(() => {
     clearInterval(intervalRef.current);
     setRunning(false);
     setTargetEndTime(null);
@@ -78,7 +78,7 @@ export const Timer = ({ onSessionComplete }) => {
 
     playChime();
     toast.success("Time's up. Well done.");
-  };
+  }, [durationSec, onSessionComplete]);
 
   useEffect(() => {
     if (!running || targetEndTime == null) return;
@@ -88,7 +88,7 @@ export const Timer = ({ onSessionComplete }) => {
       if (left <= 0) completeSession();
     }, 1000);
     return () => clearInterval(intervalRef.current);
-  }, [running, targetEndTime, durationSec, onSessionComplete]);
+  }, [running, targetEndTime, completeSession]);
 
   const startTimer = () => {
     const secs = remaining === 0 ? durationSec : remaining;
