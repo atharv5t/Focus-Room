@@ -8,7 +8,10 @@ export const API = `${BACKEND_URL}/api`;
 
 export const api = axios.create({
   baseURL: API,
-  headers: { "Content-Type": "application/json" },
+  headers: { 
+    "Content-Type": "application/json",
+    "X-API-Key": process.env.REACT_APP_API_SECRET_KEY 
+  },
 });
 
 // Settings
