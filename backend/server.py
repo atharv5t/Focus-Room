@@ -1,4 +1,6 @@
 import certifi
+from fastapi import Security, Depends 
+from fastapi.security.api_key import APIKeyHeader
 from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -21,7 +23,14 @@ db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+# ==================== Auth ====================
+API_KEY = os.environ.get("API_SECRET_KEY")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return api_key
 
 # ==================== Models ====================
 class Settings(BaseModel):
@@ -140,7 +149,7 @@ async def list_log(date: str):
     return [LogEntry(**_s(d, ["created_at"])) for d in docs]
 
 
-@api_router.post("/log", response_model=LogEntry)
+@api_router.post("/log", response_model=LogEntry, dependencies=[Depends(verify_api_key)])
 async def create_log(payload: LogEntryCreate):
     entry = LogEntry(**payload.model_dump())
     await db.log_entries.insert_one(_to_mongo(entry, ["created_at"]))
@@ -184,7 +193,7 @@ async def log_stats():
     }
 
 
-@api_router.post("/sessions", response_model=Session)
+@api_router.post("/sessions", response_model=Session, dependencies=[Depends(verify_api_key)])
 async def create_session(payload: SessionCreate):
     session = Session(
         topic=payload.topic,
