@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, "");
+if (!BACKEND_URL) {
+  console.error("Missing REACT_APP_BACKEND_URL. Set it to the public backend URL before deploying.");
+}
 export const API = `${BACKEND_URL}/api`;
 
 export const api = axios.create({

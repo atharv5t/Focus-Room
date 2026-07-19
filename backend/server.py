@@ -197,10 +197,24 @@ async def create_session(payload: SessionCreate):
 # ==================== App wiring ====================
 app.include_router(api_router)
 
+local_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.0.174:3000",
+]
+# On Render, set CORS_ORIGINS to the public frontend URL. Multiple origins can
+# be supplied as a comma-separated list, which keeps local development working
+# without hard-coding a deployment URL in the source code.
+configured_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://192.168.0.174:3000'],
+    allow_origins=local_origins + configured_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
