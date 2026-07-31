@@ -171,21 +171,38 @@ async def log_stats():
     week_start = today_start - timedelta(days=now.weekday())
     month_start = today_start.replace(day=1)
 
-    docs = await db.sessions.find({}, {"_id": 0}).to_list(5000)
+    # Pull straight from the log entries
+    docs = await db.log_entries.find({}, {"_id": 0}).to_list(5000)
+    
     today_min = week_min = month_min = 0
+    
     for d in docs:
-        ts = d.get("completed_at")
-        if isinstance(ts, str):
-            ts = datetime.fromisoformat(ts)
-        if ts is None:
+        # 1. Respect the frontend's Study vs Other filter
+        category = d.get("category", "")
+        if category and category.lower() != "study":
             continue
-        mins = int(d.get("duration_minutes", 0))
-        if ts >= today_start:
+
+        # 2. Fix the timing: use the actual recorded 'date' string, NOT 'created_at'
+        date_str = d.get("date")
+        if not date_str:
+            continue
+            
+        try:
+            # Convert "YYYY-MM-DD" into a valid date for comparison
+            log_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+            
+        # 3. Calculate exact duration based on your manual inputs
+        mins = _minutes_between(d.get("start_time", "00:00"), d.get("end_time", "00:00"))
+        
+        if log_date >= today_start:
             today_min += mins
-        if ts >= week_start:
+        if log_date >= week_start:
             week_min += mins
-        if ts >= month_start:
+        if log_date >= month_start:
             month_min += mins
+            
     return {
         "today_minutes": today_min,
         "week_minutes": week_min,
