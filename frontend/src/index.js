@@ -1,23 +1,20 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import "@/index.css";
-import App from "@/App";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+import { ClerkProvider } from '@clerk/react';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY || process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Publishable Key");
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <App />
-    </QueryClientProvider>
-  </React.StrictMode>,
+    </ClerkProvider>
+  </React.StrictMode>
 );
