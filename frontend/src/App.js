@@ -19,7 +19,7 @@ function App() {
             <UserButton />
           </SignedIn>
         </div>
-      </SignedIn>
+      </nav>
 
       {/* Public Landing Page Content */}
       <div className="landing-content">
