@@ -1,10 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
 import './index.css';
+import App from './App';
 import { ClerkProvider } from '@clerk/clerk-react';
 
-const PUBLISHABLE_KEY = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+// Insert your actual Clerk Publishable Key here for focusroomedu.com
+const PUBLISHABLE_KEY = "pk_test_cG9saXNoZWQtbGVtdXItODAuY2xlcmsuYWNjb3VudHMuZGV2JA"; 
 
 if (!PUBLISHABLE_KEY) {
   throw new Error("Missing Publishable Key");
