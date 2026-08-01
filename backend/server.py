@@ -1,7 +1,7 @@
 import certifi
 from fastapi import Security, Depends 
 from fastapi.security.api_key import APIKeyHeader
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -36,12 +36,14 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
 class Settings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = "default"
+    userId: Optional[str] = None
     daily_goal: str = ""
     weekly_goal: str = ""
     monthly_goal: str = ""
 
 
 class SettingsUpdate(BaseModel):
+    userId: Optional[str] = None
     daily_goal: Optional[str] = None
     weekly_goal: Optional[str] = None
     monthly_goal: Optional[str] = None
@@ -50,6 +52,7 @@ class SettingsUpdate(BaseModel):
 class LogEntry(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    userId: Optional[str] = None
     date: str          # YYYY-MM-DD
     task: str
     start_time: str    # HH:MM (24h)
@@ -59,6 +62,7 @@ class LogEntry(BaseModel):
 
 
 class LogEntryCreate(BaseModel):
+    userId: Optional[str] = None
     date: str
     task: str
     start_time: str
@@ -69,6 +73,7 @@ class LogEntryCreate(BaseModel):
 class Session(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    userId: Optional[str] = None
     topic: Optional[str] = None
     category: Optional[str] = None
     duration_minutes: int
@@ -76,6 +81,7 @@ class Session(BaseModel):
 
 
 class SessionCreate(BaseModel):
+    userId: Optional[str] = None
     topic: Optional[str] = None
     category: Optional[str] = None
     duration_minutes: int
@@ -121,10 +127,11 @@ async def root():
 
 
 @api_router.get("/settings", response_model=Settings)
-async def get_settings():
-    doc = await db.settings.find_one({"id": "default"}, {"_id": 0})
+async def get_settings(userId: str = Query(...)):
+    query = {"userId": userId}
+    doc = await db.settings.find_one(query, {"_id": 0})
     if not doc:
-        settings = Settings()
+        settings = Settings(userId=userId)
         await db.settings.insert_one(settings.model_dump())
         return settings
     return Settings(**doc)
@@ -132,10 +139,11 @@ async def get_settings():
 
 @api_router.put("/settings", response_model=Settings)
 async def update_settings(payload: SettingsUpdate):
-    existing = await db.settings.find_one({"id": "default"}, {"_id": 0}) or {}
+    query = {"userId": payload.userId} if payload.userId else {"id": "default"}
+    existing = await db.settings.find_one(query, {"_id": 0}) or {}
     merged = Settings(**{**existing, **payload.model_dump(exclude_unset=True)})
     await db.settings.update_one(
-        {"id": "default"},
+        query,
         {"$set": merged.model_dump()},
         upsert=True,
     )
@@ -144,8 +152,9 @@ async def update_settings(payload: SettingsUpdate):
 
 # ==================== Log Entries ====================
 @api_router.get("/log", response_model=List[LogEntry])
-async def list_log(date: str):
-    docs = await db.log_entries.find({"date": date}, {"_id": 0}).sort("start_time", 1).to_list(500)
+async def list_log(date: str, userId: str = Query(...)):
+    query = {"date": date, "userId": userId}
+    docs = await db.log_entries.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
     return [LogEntry(**_s(d, ["created_at"])) for d in docs]
 
 
@@ -165,35 +174,31 @@ async def delete_log(entry_id: str):
 
 
 @api_router.get("/log/stats")
-async def log_stats():
+async def log_stats(userId: str = Query(...)):
     now = _now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=now.weekday())
     month_start = today_start.replace(day=1)
 
-    # Pull straight from the log entries
-    docs = await db.log_entries.find({}, {"_id": 0}).to_list(5000)
+    query = {"userId": userId}
+    docs = await db.log_entries.find(query, {"_id": 0}).to_list(5000)
     
     today_min = week_min = month_min = 0
     
     for d in docs:
-        # 1. Respect the frontend's Study vs Other filter
         category = d.get("category", "")
         if category and category.lower() != "study":
             continue
 
-        # 2. Fix the timing: use the actual recorded 'date' string, NOT 'created_at'
         date_str = d.get("date")
         if not date_str:
             continue
             
         try:
-            # Convert "YYYY-MM-DD" into a valid date for comparison
             log_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
             continue
             
-        # 3. Calculate exact duration based on your manual inputs
         mins = _minutes_between(d.get("start_time", "00:00"), d.get("end_time", "00:00"))
         
         if log_date >= today_start:
@@ -213,6 +218,7 @@ async def log_stats():
 @api_router.post("/sessions", response_model=Session, dependencies=[Depends(verify_api_key)])
 async def create_session(payload: SessionCreate):
     session = Session(
+        userId=payload.userId,
         topic=payload.topic,
         category=payload.category,
         duration_minutes=payload.duration_minutes,
@@ -229,9 +235,6 @@ local_origins = [
     "http://127.0.0.1:3000",
     "http://192.168.0.174:3000",
 ]
-# On Render, set CORS_ORIGINS to the public frontend URL. Multiple origins can
-# be supplied as a comma-separated list, which keeps local development working
-# without hard-coding a deployment URL in the source code.
 configured_origins = [
     origin.strip()
     for origin in os.getenv("CORS_ORIGINS", "").split(",")
