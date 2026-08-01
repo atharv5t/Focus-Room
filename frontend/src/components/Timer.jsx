@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Play, Pause, RotateCcw } from "lucide-react";
+import { useAuth } from "@clerk/clerk-react";
 
 const PRESETS = [
   { label: "25m", minutes: 25 },
@@ -21,6 +22,8 @@ function formatTime(totalSeconds) {
 }
 
 export const Timer = ({ onSessionComplete }) => {
+  const { userId } = useAuth();
+  
   const [durationSec, setDurationSec] = useState(25 * 60);
   const [remaining, setRemaining] = useState(25 * 60);
   const [running, setRunning] = useState(false);
@@ -71,6 +74,7 @@ export const Timer = ({ onSessionComplete }) => {
     (async () => {
       try {
         onSessionComplete?.({
+          userId: userId,
           durationMinutes: Math.round(durationSec / 60),
         });
       } catch (e) { /* ignore */ }
@@ -78,7 +82,7 @@ export const Timer = ({ onSessionComplete }) => {
 
     playChime();
     toast.success("Time's up. Well done.");
-  }, [durationSec, onSessionComplete]);
+  }, [durationSec, userId, onSessionComplete]);
 
   useEffect(() => {
     if (!running || targetEndTime == null) return;

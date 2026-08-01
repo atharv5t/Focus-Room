@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Play, Square, X } from "lucide-react";
 import { fetchLogEntries, createLogEntry, deleteLogEntry } from "@/lib/api";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/clerk-react";
 
 const ACTIVE_KEY = "focusroom_active_entry";
 
@@ -30,13 +31,8 @@ function minutesBetween(start, end) {
   return mins;
 }
 
-function fmtDuration(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
 export const LogBook = ({ refreshKey, onChange }) => {
+  const { userId } = useAuth();
   const [entries, setEntries] = useState([]);
   const [taskDraft, setTaskDraft] = useState("");
   const [active, setActive] = useState(null); // {task, start_time, started_ts, category?}
@@ -66,11 +62,10 @@ export const LogBook = ({ refreshKey, onChange }) => {
   }, [active]);
 
   const load = async () => {
+    if (!userId) return;
     try {
-      const list = await fetchLogEntries(date);
-  
-      console.log("LOG API:", list);
-      console.log("Is array?", Array.isArray(list));
+      // Pass userId to fetch user-specific entries
+      const list = await fetchLogEntries(date, userId);
   
       setEntries(Array.isArray(list) ? list : []);
     } catch (e) {
@@ -79,12 +74,13 @@ export const LogBook = ({ refreshKey, onChange }) => {
     } finally {
       setLoaded(true);
     }
-  
   };
 
-  useEffect(() => { load(); }, [date, refreshKey]); // eslint-disable-line
-
-  const total = entries.reduce((s, e) => s + minutesBetween(e.start_time, e.end_time), 0);
+  useEffect(() => { 
+    if (userId) {
+      load(); 
+    }
+  }, [date, refreshKey, userId]);
 
   const requestLogEntry = () => {
     const t = taskDraft.trim();
@@ -96,7 +92,6 @@ export const LogBook = ({ refreshKey, onChange }) => {
   const startWithCategory = (category) => {
     if (!pendingLog) return;
     
-    // Create the active session but DO NOT save to database yet
     const newActive = {
       date,
       task: pendingLog.task,
@@ -117,9 +112,10 @@ export const LogBook = ({ refreshKey, onChange }) => {
   };
 
   const endEntry = async () => {
-    if (!active) return;
-    // Now we send it to the database with the saved category
+    if (!active || !userId) return;
+    
     const payload = {
+      userId: userId, // Attached directly to the database payload
       date: active.date,
       task: active.task,
       start_time: active.start_time,
@@ -153,7 +149,6 @@ export const LogBook = ({ refreshKey, onChange }) => {
     }
   };
 
-  // Elapsed for active entry (uses tick to force re-render)
   let activeElapsed = "0s";
   if (active) {
     void tick;
@@ -166,7 +161,6 @@ export const LogBook = ({ refreshKey, onChange }) => {
 
   return (
     <div className="relative border border-[color:var(--surface-2)] rounded-sm bg-[color:var(--surface)]/30 backdrop-blur-sm p-7 lg:p-8 lg:sticky lg:top-10">
-      {/* Decorative light */}
       <div
         className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl opacity-25"
         style={{ background: "var(--moss)" }}
@@ -182,7 +176,6 @@ export const LogBook = ({ refreshKey, onChange }) => {
         </div>
       </div>
 
-      {/* Active entry OR add form */}
       <div className="pb-5 border-b border-[color:var(--surface-2)] relative z-10">
         {active ? (
           <div data-testid="active-entry" className="flex flex-col gap-3">
@@ -300,7 +293,6 @@ export const LogBook = ({ refreshKey, onChange }) => {
         </div>
       )}
 
-      {/* Entries */}
       <div className="pt-5 relative z-10 max-h-[600px] overflow-y-auto -mx-2 px-2">
         {!loaded ? (
           <p className="text-xs text-[color:var(--ink-3)] italic">Loading…</p>
