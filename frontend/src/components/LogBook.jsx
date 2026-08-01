@@ -59,22 +59,22 @@ export const LogBook = ({ refreshKey, onChange }) => {
     return () => clearInterval(id);
   }, [active]);
 
-  const load = async () => {
-    if (!userId) return;
-    try {
-      const list = await fetchLogEntries(date, userId);
-      setEntries(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error(e);
-      toast.error("Could not load log");
-    } finally {
-      setLoaded(true);
-    }
-  };
+  useEffect(() => {
+    const load = async () => {
+      if (!userId) return;
+      try {
+        const list = await fetchLogEntries(date, userId);
+        setEntries(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error(e);
+        toast.error("Could not load log");
+      } finally {
+        setLoaded(true);
+      }
+    };
 
-  useEffect(() => { 
     if (userId) {
-      load(); 
+      load();
     }
   }, [date, refreshKey, userId]);
 
@@ -137,7 +137,7 @@ export const LogBook = ({ refreshKey, onChange }) => {
 
   const remove = async (id) => {
     try {
-      await deleteLogEntry(id, userId); // Fixed: userId is now passed
+      await deleteLogEntry(id, userId); 
       setEntries((cur) => cur.filter((e) => e.id !== id));
       onChange?.();
     } catch (e) {
