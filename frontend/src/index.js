@@ -4,11 +4,11 @@ import './index.css';
 import App from './App';
 import { ClerkProvider } from '@clerk/clerk-react';
 
-// Insert your actual Clerk Publishable Key here for focusroomedu.com
+// Replace with your LIVE Publishable Key from Clerk
 const PUBLISHABLE_KEY = "pk_test_cG9saXNoZWQtbGVtdXItODAuY2xlcmsuYWNjb3VudHMuZGV2JA"; 
 
 if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key");
+  throw new Error("Missing Publishable Key")
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
