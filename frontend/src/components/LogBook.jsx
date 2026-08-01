@@ -35,14 +35,13 @@ export const LogBook = ({ refreshKey, onChange }) => {
   const { userId } = useAuth();
   const [entries, setEntries] = useState([]);
   const [taskDraft, setTaskDraft] = useState("");
-  const [active, setActive] = useState(null); // {task, start_time, started_ts, category?}
-  const [pendingLog, setPendingLog] = useState(null); // {task, start_time}
+  const [active, setActive] = useState(null);
+  const [pendingLog, setPendingLog] = useState(null);
   const [showCategoryPopup, setShowCategoryPopup] = useState(false);
   const [tick, setTick] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const date = todayISO();
 
-  // Load active entry from localStorage on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(ACTIVE_KEY);
@@ -54,7 +53,6 @@ export const LogBook = ({ refreshKey, onChange }) => {
     } catch (e) { /* ignore */ }
   }, [date]);
 
-  // Live tick for active entry duration display
   useEffect(() => {
     if (!active) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
@@ -64,9 +62,7 @@ export const LogBook = ({ refreshKey, onChange }) => {
   const load = async () => {
     if (!userId) return;
     try {
-      // Pass userId to fetch user-specific entries
       const list = await fetchLogEntries(date, userId);
-  
       setEntries(Array.isArray(list) ? list : []);
     } catch (e) {
       console.error(e);
@@ -115,7 +111,7 @@ export const LogBook = ({ refreshKey, onChange }) => {
     if (!active || !userId) return;
     
     const payload = {
-      userId: userId, // Attached directly to the database payload
+      userId: userId,
       date: active.date,
       task: active.task,
       start_time: active.start_time,
@@ -141,7 +137,7 @@ export const LogBook = ({ refreshKey, onChange }) => {
 
   const remove = async (id) => {
     try {
-      await deleteLogEntry(id);
+      await deleteLogEntry(id, userId); // Fixed: userId is now passed
       setEntries((cur) => cur.filter((e) => e.id !== id));
       onChange?.();
     } catch (e) {
